@@ -1,0 +1,2 @@
+import synonyms
+synlst = synonyms.display('改善')
