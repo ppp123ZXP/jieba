@@ -1,0 +1,104 @@
+
+import re
+s1="安安金纯青瓜洗面奶女深层清洁毛孔补水保湿安安黄瓜专柜国货正品高保湿青瓜补水 200g大瓶装安安金纯青瓜洗面奶女深层清洁毛孔补水保湿安安黄瓜专柜国货正品高保湿青瓜补水 200g大瓶装化妆品净含量:60ml"
+regex="[洗面奶]|[形态]|[净含量]"
+re.findall(regex,s1)
+
+import re
+re.findall("洗面奶|形态|净含量","安安金纯青瓜洗面奶女深层清洁毛孔补水保湿安安黄瓜专柜国货正品高保湿青瓜补水 200g大瓶装安安金纯青瓜洗面奶女深层清洁毛孔补水保湿安安黄瓜专柜国货正品高保湿青瓜补水 200g大瓶装化妆品净含量:60ml")
+
+import re
+re.findall('f.o','foof ofaof和of\no')
+
+import re
+re.findall('^f.o','foof ofaof和of\no')
+
+import re
+re.findall('fo$','afoofofo')
+
+import re
+re.findall('ab*','aababbabbb')
+re.findall('fo*','ffofoofooo')
+
+import re
+re.findall('ab+','aababbabbb')
+
+import re
+re.findall('ab?','aababbabbb')
+
+import re
+re.findall('ab{3}','ababbabbbabbbb')
+
+import re
+re.findall('ab{3,5}','ababbabbbabbbb')
+
+import re
+re.findall('你[好坏]','你好')
+re.findall('你[好坏]','你坏')
+re.findall('你[好坏]','你好坏')
+re.findall('你[好坏]','你坏好')
+re.findall('你[好坏]','你 好')
+
+import re
+re.findall('[a-p]','abcdefghigklmnopqrst')
+
+import re
+re.findall('[abcfg]','abcdefghigklmnopqrst')
+
+import re
+re.findall('[^…]','abcdefghigklmnopqrst')
+re.findall('[^.]+','abcdefghigklmnopqrst')
+
+import re
+re.findall('\d{10}','tel:18898448874')
+re.findall('\D{10}','tel:1#$%%……&&*%345*^%^&%3')
+
+import re
+re.findall('1\d{10}','tel:18898448874')
+
+import re
+re.findall('\w+','PORT#1908  44%  下降')
+re.findall('\W+','PORT#1908  44%  下降')
+
+import re
+re.findall('hello\s+world','hello world')
+re.findall('\S+','hello world')
+
+import re
+re.findall('\A\d+-\d\Z','1000-1500')
+
+
+
+import re
+text="%安安3.789%金1.2纯3.789青瓜洗1.2%面12.238奶女456%深层清洁毛孔补水保湿安安黄瓜123%专柜国货正品高保湿青瓜补水 200g大瓶装安安金纯青300瓜洗面奶女深层清洁毛孔补水保湿安安黄瓜专柜国货正品高保湿青瓜补水 200g大瓶装化妆品净含量:60ml"
+a="\d+%|\d.\d+%|\d.[0-9]+|[0-9]+.[0-9]+"
+re.findall(a,text)
+
+import re
+import string
+string='%安安3.789%金1.2纯3.789青瓜洗1.2%面12.238奶女456%深层清洁abc毛孔补水保湿安安黄瓜123%专柜国货正-3品高保湿青瓜补水 200g大瓶装安安金纯青300瓜洗面奶女深层200清洁毛孔补水保湿安安黄瓜专柜国货正品高保湿青瓜补水 200g大瓶装化妆品净含量:60ml'
+a="(-?(\d\.?\d+%|\d+\.?\d+|\d+))"
+b="[\d]+|\.|\%"
+re.findall(b,string)
+re.findall('[^, ]+','.......')
+
+
+c=list(b)
+for x in c:
+  print(x)
+x = tuple(c)
+for d in x:
+  print(d)
+
+
+
+
+list_str = list(string)
+list_str.pop(x)
+list_str = ''.join(list_str)
+print(list_str)
+
+import re
+text="%安安3.789%金1.2纯3.789青瓜洗1.2%面12.238奶女456%深层清洁毛孔补水保湿安安黄瓜123%专柜国货正品高保湿青瓜补水 200g大瓶装安安金纯青300瓜洗面奶女深层清洁毛孔补水保湿安安黄瓜专柜国货正品高保湿青瓜补水 200g大瓶装化妆品净含量:60ml"
+a="青瓜{1}"
+re.findall(a,text)
