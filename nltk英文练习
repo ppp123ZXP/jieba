@@ -1,0 +1,98 @@
+import nltk
+nltk.download()
+
+import collections
+import re
+from nltk import word_tokenize#以空格形式实现分词
+paragraph = "The first time I heard that song was in Hawaii on radio. I was just a kid, and loved it very much! What a fantastic song!"
+words = word_tokenize(paragraph)
+print(words)
+
+
+from nltk import sent_tokenize    #以符号形式实现分句
+sentences = "The first time I heard that song was in Hawaii on radio. I was just a kid, and loved it very much! What a fantastic song!"
+sentence = sent_tokenize(sentences )
+print(sentence)
+
+
+from nltk import word_tokenize#分词后去除标点符号,去停用词，词性标注
+from nltk import word_tokenize,pos_tag
+from nltk.corpus import stopwords
+paragraph = "The first time I heard that song was in Hawaii on radio. I was just a kid, and loved it very much! What a fantastic song!".lower()
+cutwords1 = word_tokenize(paragraph)   #分词
+print('【NLTK分词结果：】')
+print(cutwords1)
+
+interpunctuations = [',', '.', ':', ';', '?', '(', ')', '[', ']', '&', '!', '*', '@', '#', '$', '%']   #定义标点符号列表
+cutwords2 = [word for word in cutwords1 if word not in interpunctuations]   #去除标点符号
+print('\n【NLTK分词后去除符号结果：】')
+print(cutwords2)
+
+stops = set(stopwords.words("english"))
+cutwords3 = [word for word in cutwords2 if word not in stops]
+print('\n【NLTK分词后去除停用词结果：】')
+print(cutwords3)#去除停用词
+
+print('\n【NLTK分词去除停用词后进行词性标注：】')
+print(pos_tag(cutwords2))
+A=pos_tag(cutwords2)
+
+B=dict(A)
+males = filter(lambda x: 'NN' == x[1], B.items())
+'''for key, value in males:
+    print('%s : %s' % (key, value))
+'''
+result1=''
+for word,flag in males:
+    temp="%s "%(word)
+    result1=result1+temp
+print(result1)
+
+string_data2=word_tokenize(result1)#按照空格分词
+string_data=str(string_data2)
+regex1="\w+"
+A=re.findall(regex1,string_data)
+dict=map(lambda x:x.lower(),A)#小写
+
+# 词频统计 全部小写的：
+word_counts = collections.Counter(dict)     # 对分词做词频统计
+word_counts_top1 = word_counts.most_common(100)  # 获取前number个最高频的词
+word_counts_top1
+
+
+
+
+
+# 基于Porter词干提取算法
+from nltk.stem.porter import PorterStemmer
+print(PorterStemmer().stem('leaves'))#词干提取
+
+# 基于Lancaster 词干提取算法
+from nltk.stem.lancaster import LancasterStemmer
+print(LancasterStemmer().stem('leaves'))#词干提取
+
+# 基于Snowball 词干提取算法
+from nltk.stem import SnowballStemmer
+print(SnowballStemmer('english').stem('leaves'))#词干提取
+
+cutwords4 = []
+for cutword in cutwords3:
+    cutwords4.append(PorterStemmer().stem(cutword))
+print(cutwords4)#词干提取
+
+
+
+
+
+
+
+from nltk.stem import WordNetLemmatizer #词性还原
+lemmatizer = WordNetLemmatizer()
+print(lemmatizer.lemmatize('playing'))
+
+from nltk.stem import WordNetLemmatizer    #词性还原
+lemmatizer = WordNetLemmatizer()
+print(lemmatizer.lemmatize('playing', pos="v"))   #指定还原词性为动词
+
+
+
