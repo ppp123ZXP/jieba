@@ -1,0 +1,15 @@
+from wxpy import *
+bot = Bot()
+found = bot.friends().search('xx')
+bot = Bot(cache_path=True)
+bot.file_helper.send("hello")
+
+
+@bot.register()
+def print_message(msg):
+    print(msg.text)
+    return msg.text
+
+
+# 进入Python命令行，让程序保持运行
+embed()
