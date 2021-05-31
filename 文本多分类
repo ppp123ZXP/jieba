@@ -1,0 +1,184 @@
+import pandas as pd
+import matplotlib.pyplot as plt
+import jieba as jb
+import re
+from collections import Counter
+from wordcloud import WordCloud
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.feature_selection import chi2
+import numpy as np
+from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.feature_extraction.text import TfidfTransformer
+from sklearn.linear_model import LogisticRegression
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.naive_bayes import MultinomialNB
+from sklearn.svm import LinearSVC
+from sklearn.model_selection import cross_val_score
+import seaborn as sns
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score, confusion_matrix
+from sklearn.metrics import classification_report
+from IPython.display import display
+
+df = pd.read_csv(
+    open('D:\\Users\\Desktop\\分类\\美妆工具.csv'))
+df = df[['b', 'T']]
+print("数据总量: %d ." % len(df))
+df.sample(10)
+
+print("在 C 列中总共有 %d 个空值." % df['b'].isnull().sum())
+print("在 T 列中总共有 %d 个空值." % df['T'].isnull().sum())
+var = df[df.isnull().values == True]
+df = df[pd.notnull(df['T'])]
+
+d = {'C': df['C'].value_counts().index, 'count': df['C'].value_counts()}
+df_C = pd.DataFrame(data=d).reset_index(drop=True)
+df_C
+
+plt.rcParams['font.sans-serif']=['SimHei']
+plt.rcParams['axes.unicode_minus']=False
+df_C.plot(x='C', y='count', kind='bar', legend=False, figsize=(10, 5))
+plt.title("类目数量分布")
+plt.ylabel('数量', size=18)
+plt.xlabel('类目', size=18)
+
+df['id'] = df['C'].factorize()[0]
+id_df = df[['C', 'id']].drop_duplicates().sort_values('id').reset_index(drop=True)
+C_to_id = dict(id_df.values)
+id_to_C = dict(id_df[['id', 'C']].values)
+df.sample(10)
+id_df
+
+
+# 定义删除除字母,数字，汉字以外的所有符号的函数
+def remove_punctuation(line):
+    line = str(line)
+    if line.strip() == '':
+        return ''
+    rule = re.compile(u"[^a-zA-Z0-9\u4E00-\u9FA5]")
+    line = rule.sub('', line)
+    return line
+
+
+def stopwordslist(filepath):
+    stopwords = [line.strip() for line in open(filepath, 'r', encoding='utf-8').readlines()]
+    return stopwords
+
+
+# 加载停用词
+stopwords = stopwordslist("../data/停用词表-词频.txt")
+# 删除除字母,数字，汉字以外的所有符号
+df['clean_T'] = df['T'].apply(remove_punctuation)
+df.sample(10)
+# 分词，并过滤停用词
+df['cut_T'] = df['clean_T'].apply(lambda x: " ".join([w for w in list(jb.cut(x)) if w not in stopwords]))
+df.head()
+
+
+def generate_wordcloud(tup):
+    wordcloud = WordCloud(background_color='white',
+                          font_path='simhei.ttf',
+                          max_words=50, max_font_size=40,
+                          random_state=42
+                          ).generate(str(tup))
+    return wordcloud
+
+
+C_desc = dict()
+for C in id_df.C.values:
+    text = df.loc[df['C'] == C, 'cut_T']
+    text = (' '.join(map(str, text))).split(' ')
+    C_desc[C] = text
+
+fig, axes = plt.subplots(5, 2, figsize=(30, 38))
+k = 0
+for i in range(5):
+    for j in range(2):
+        C = id_to_C[k]
+        most100 = Counter(C_desc[C]).most_common(30)
+        ax = axes[i, j]
+        ax.imshow(generate_wordcloud(most100), interpolation="bilinear")
+        ax.axis('off')
+        ax.set_title("{} Top 30".format(C), fontsize=30)
+        k += 1
+
+tfidf = TfidfVectorizer(norm='l2', ngram_range=(1, 2))
+features = tfidf.fit_transform(df.cut_T)
+labels = df.id
+print(features.shape)
+print('-----------------------------')
+print(features)
+
+N = 2
+for C, id in sorted(C_to_id.items()):
+    features_chi2 = chi2(features, labels == id)
+    indices = np.argsort(features_chi2[0])
+    feature_names = np.array(tfidf.get_feature_names())[indices]
+    unigrams = [v for v in feature_names if len(v.split(' ')) == 1]
+    bigrams = [v for v in feature_names if len(v.split(' ')) == 2]
+    print("# '{}':".format(C))
+    print("  . Most correlated unigrams:\n       . {}".format('\n       . '.join(unigrams[-N:])))
+    print("  . Most correlated bigrams:\n       . {}".format('\n       . '.join(bigrams[-N:])))
+
+X_train, X_test, y_train, y_test = train_test_split(df['cut_T'], df['id'], random_state=0)
+count_vect = CountVectorizer()
+X_train_counts = count_vect.fit_transform(X_train)
+tfidf_transformer = TfidfTransformer()
+X_train_tfidf = tfidf_transformer.fit_transform(X_train_counts)
+clf = MultinomialNB().fit(X_train_tfidf, y_train)
+
+
+def myPredict(sec):
+    format_sec = " ".join([w for w in list(jb.cut(remove_punctuation(sec))) if w not in stopwords])
+    pred_id = clf.predict(count_vect.transform([format_sec]))
+    print(id_to_C[pred_id[0]])
+
+
+models = [
+    RandomForestClassifier(n_estimators=539, max_depth=3, random_state=0),
+    LinearSVC(),
+    MultinomialNB(),
+    LogisticRegression(random_state=0),
+]
+CV = 3
+cv_df = pd.DataFrame(index=range(CV * len(models)))
+entries = []
+for model in models:
+    model_name = model.__class__.__name__
+    accuracies = cross_val_score(model, features, labels, scoring='accuracy', cv=CV)
+    for fold_idx, acc in enumerate(accuracies):
+        entries.append((model_name, fold_idx, acc))
+cv_df = pd.DataFrame(entries, columns=['model_name', 'fold_idx', 'accuracy'])
+
+sns.boxplot(x='model_name', y='accuracy', data=cv_df)
+sns.stripplot(x='model_name', y='accuracy', data=cv_df,
+              size=8, jitter=True, edgecolor="gray", linewidth=2)
+plt.show()
+cv_df.groupby('model_name').accuracy.mean()
+
+# 训练模型
+model = LinearSVC()
+X_train, X_test, y_train, y_test, indices_train, indices_test = train_test_split(features, labels, df.index,
+                                                                                 test_size=0.33, stratify=labels,
+                                                                                 random_state=0)
+model.fit(X_train, y_train)
+y_pred = model.predict(X_test)
+
+# 生成混淆矩阵
+conf_mat = confusion_matrix(y_test, y_pred)
+fig, ax = plt.subplots(figsize=(10, 8))
+sns.heatmap(conf_mat, annot=True, fmt='d',
+            xticklabels=id_df.C.values, yticklabels=id_df.C.values)
+plt.ylabel('实际结果', fontsize=18)
+plt.xlabel('预测结果', fontsize=18)
+plt.show()
+
+print('accuracy %s' % accuracy_score(y_pred, y_test))
+print(classification_report(y_test, y_pred, target_names=id_df['C'].values))
+
+for predicted in id_df.id:
+    for actual in id_df.id:
+        if predicted != actual and conf_mat[actual, predicted] >= 1:
+            print("{} 预测为 {} : {} 例.".format(id_to_C[actual], id_to_C[predicted], conf_mat[actual, predicted]))
+display(df.loc[indices_test[(y_test == actual) & (y_pred == predicted)]][['C', 'T']])
+print('')
