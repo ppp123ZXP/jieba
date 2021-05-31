@@ -1,0 +1,91 @@
+
+# 导入扩展库
+import re                           # 正则表达式库
+import collections                  # 词频统计库
+from python.data1 import regex,StopWords,number,output1,output2,df2
+import string
+
+#加载停用词，读取
+def stopwordslist(filepath):
+    stopwords = [line.strip() for line in open(filepath, 'r', encoding='utf-8').readlines()]
+    return stopwords
+stopwords = stopwordslist(StopWords)
+map(lambda x:x.lower(),stopwords)#小写
+
+
+#fn = open(Analysis_text,'r',encoding = 'UTF-8')  # 打开文件
+#string_data = fn.read()                          # 读出整个文件
+#fn.close()                                       # 关闭文件
+#读取文件
+
+string_data=df2.head()
+df3=df2.values.tolist()
+idx = 0
+for x in df3:
+    df3[idx] = "".join(x)
+    idx += 1
+string_data = '，'.join(df3)
+
+regex1="\w+"
+A=re.findall(regex1,string_data)
+
+#读取用户字典
+s1=string_data
+user_dict=re.findall(regex,s1)
+
+
+object_list =[]
+#with open(StopWords, 'r', encoding='UTF-8') as meaninglessFile:
+#    stopwords = set(meaninglessFile.read().split('\n'))
+#stopwords.add(' ')
+for word in A:         # 循环读出每个分词
+    if len(word) < 2:
+        continue
+    if word in string.punctuation:
+        continue
+    if word.isdigit():
+        continue
+    if '.' in word:
+        continue
+    if '%' in word or '%' in word:
+        continue
+    if word == 'nan':
+        continue
+    if word not in stopwords:       # 如果不在去除词库中
+        object_list.append(word)    # 分词追加到列表
+
+B=user_dict+object_list#不分大小写
+dict=map(lambda x:x.lower(),B)#小写
+
+
+# 词频统计 全部小写的：
+word_counts = collections.Counter(dict)     # 对分词做词频统计
+word_counts_top1 = word_counts.most_common(number)  # 获取前number个最高频的词
+word_counts_top1
+
+
+output = open(output1,'w',encoding='utf-8')
+output.write('word\tcount\n')
+for i in range(len(word_counts_top1)):
+    for j in range(len(word_counts_top1[i])):
+        output.write(str(word_counts_top1[i][j]))  #write函数不能写int类型的参数，所以使用str()转化
+        output.write('\t')  #相当于Tab一下，换一个单元格
+    output.write('\n')    #写完一行立马换行
+output.close()
+
+
+#词频统计 不分大小写的：
+word_counts = collections.Counter(B)       # 对分词做词频统计
+word_counts_top2 = word_counts.most_common(number)    # 获取前number个最高频的词
+word_counts_top2
+
+output = open(output2,'w',encoding='utf-8')
+output.write('word\tcount\n')
+for i in range(len(word_counts_top2)):
+    for j in range(len(word_counts_top2[i])):
+        output.write(str(word_counts_top2[i][j]))  #write函数不能写int类型的参数，所以使用str()转化
+        output.write('\t')  #相当于Tab一下，换一个单元格
+    output.write('\n')    #写完一行立马换行
+output.close()
+
+
