@@ -1,0 +1,171 @@
+import pandas as pd
+import matplotlib
+import numpy as np
+import matplotlib.pyplot as plt
+plt.rcParams['font.sans-serif'] = ['SimHei']
+plt.rcParams['axes.unicode_minus'] = False
+from keras.preprocessing.text import Tokenizer
+from keras.preprocessing.sequence import pad_sequences
+from keras.models import Sequential
+from keras.layers import Dense, Embedding, LSTM, SpatialDropout1D
+from sklearn.model_selection import train_test_split
+from keras.utils.np_utils import to_categorical
+from keras.callbacks import EarlyStopping
+from keras.layers import Dropout
+import jieba as jb
+import re
+
+
+df = pd.read_csv(
+    open('D:\\Users\\Desktop\\论文\\复旦大学中文文本分类语料.csv', encoding='utf-8', errors='ignore'))
+df = df[['分类', '正文']]
+print("数据总量: %d ." % len(df))
+df.sample(10)
+
+print("在 C 列中总共有 %d 个空值." % df['分类'].isnull().sum())
+print("在 T 列中总共有 %d 个空值." % df['正文'].isnull().sum())
+var = df[df.isnull().values == True]
+df = df[pd.notnull(df['正文'])]
+
+
+
+d = {'分类': df['分类'].value_counts().index, 'count': df['分类'].value_counts()}
+df_分类 = pd.DataFrame(data=d).reset_index(drop=True)
+df_分类
+
+plt.rcParams['font.sans-serif']=['SimHei']
+plt.rcParams['axes.unicode_minus']=False
+df_分类.plot(x='分类', y='count', kind='bar', legend=False, figsize=(10, 5))
+plt.title("类目数量分布")
+plt.ylabel('数量', size=18)
+plt.xlabel('类目', size=18)
+
+df['id'] = df['分类'].factorize()[0]
+id_df = df[['分类', 'id']].drop_duplicates().sort_values('id').reset_index(drop=True)
+分类_to_id = dict(id_df.values)
+id_to_分类 = dict(id_df[['id', '分类']].values)
+df.sample(10)
+id_df
+
+# 定义删除除字母,数字，汉字以外的所有符号的函数
+def remove_punctuation(line):
+    line = str(line)
+    if line.strip() == '':
+        return ''
+    rule = re.compile(u"[^a-zA-Z0-9\u4E00-\u9FA5]")
+    line = rule.sub('', line)
+    return line
+def stopwordslist(filepath):
+    stopwords = [line.strip() for line in open(filepath, 'r', encoding='utf-8').readlines()]
+    return stopwords
+# 加载停用词
+stopwords = stopwordslist("../data/停用词表-词频.txt")
+
+#删除除字母,数字，汉字以外的所有符号
+df['clean_正文'] = df['正文'].apply(remove_punctuation)
+df.sample(10)
+
+#分词，并过滤停用词
+df['cut_正文'] = df['clean_正文'].apply(lambda x: " ".join([w for w in list(jb.cut(x)) if w not in stopwords]))
+df.head()
+
+
+
+# 设置最频繁使用的50000个词(在texts_to_matrix是会取前MAX_NB_WORDS,会取前MAX_NB_WORDS列)
+MAX_NB_WORDS = 50000
+# 每条cut_review最大的长度
+MAX_SEQUENCE_LENGTH = 500
+# 设置Embeddingceng层的维度
+EMBEDDING_DIM = 100
+tokenizer = Tokenizer(num_words=MAX_NB_WORDS, filters='!"#$%&()*+,-./:;<=>?@[\]^_`{|}~', lower=True)
+tokenizer.fit_on_texts(df['cut_正文'].values)
+word_index = tokenizer.word_index
+print('共有 %s 个不相同的词语.' % len(word_index))
+
+X = tokenizer.texts_to_sequences(df['cut_正文'].values)
+#填充X,让X的各个列的长度统一
+X = pad_sequences(X, maxlen=MAX_SEQUENCE_LENGTH)
+#多类标签的onehot展开
+Y = pd.get_dummies(df['id']).values
+print(X.shape)
+print(Y.shape)
+
+#拆分训练集和测试集
+X_train, X_test, Y_train, Y_test = train_test_split(X,Y, test_size = 0.20, random_state = 42)
+print(X_train.shape,Y_train.shape)
+print(X_test.shape,Y_test.shape)
+
+
+#定义模型
+model = Sequential()
+model.add(Embedding(MAX_NB_WORDS, EMBEDDING_DIM, input_length=X.shape[1]))
+model.add(SpatialDropout1D(0.2))
+model.add(LSTM(300, dropout=0.2, recurrent_dropout=0.2))
+model.add(Dense(19, activation='softmax'))
+model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
+print(model.summary())
+
+epochs = 4
+batch_size = 64
+
+history = model.fit(X_train, Y_train, epochs=epochs, batch_size=batch_size,validation_split=0.1,
+                    callbacks=[EarlyStopping(monitor='val_loss', patience=3, min_delta=0.0001)])
+
+
+accr = model.evaluate(X_test,Y_test)
+print('Test set\n  Loss: {:0.3f}\n  Accuracy: {:0.3f}'.format(accr[0],accr[1]))
+
+plt.title('Loss')
+plt.plot(history.history['loss'], label='train')
+plt.plot(history.history['val_loss'], label='test')
+plt.legend()
+plt.show();
+
+
+plt.title('Accuracy')
+plt.plot(history.history['accuracy'], label='train')
+plt.plot(history.history['val_accuracy'], label='test')
+plt.legend()
+plt.show();
+
+
+y_pred = model.predict(X_test)
+y_pred = y_pred.argmax(axis = 1)
+Y_test = Y_test.argmax(axis = 1)
+
+
+import seaborn as sns
+from sklearn.metrics import accuracy_score, confusion_matrix
+#生成混淆矩阵
+conf_mat = confusion_matrix(Y_test, y_pred)
+fig, ax = plt.subplots(figsize=(10,8))
+sns.heatmap(conf_mat, annot=True, fmt='d',
+            xticklabels=id_df.分类.values, yticklabels=id_df.分类.values)
+plt.ylabel('实际结果',fontsize=18)
+plt.xlabel('预测结果',fontsize=18)
+
+from sklearn.metrics import classification_report
+
+print('accuracy %s' % accuracy_score(y_pred, Y_test))
+print(classification_report(Y_test, y_pred, target_names=id_df['分类'].values))
+
+def predict(text):
+    txt = remove_punctuation(text)
+    txt = [" ".join([w for w in list(jb.cut(txt)) if w not in stopwords])]
+    seq = tokenizer.texts_to_sequences(txt)
+    padded = pad_sequences(seq, maxlen=MAX_SEQUENCE_LENGTH)
+    pred = model.predict(padded)
+    id= pred.argmax(axis=1)[0]
+    return id_df[id_df.id==id]['分类'].values[0]
+
+predict('它是市面上目前在金融领域，较为完整、系统、全面地对中国金融体系进行介绍的读本。历年来介绍并研究改革开放后中国金融发展的文章和书籍可以说是目不暇接，汗牛充栋。但本书从理论到实践、过去到现在、国际到国内三个维度，比较完整、系统、全面地对中国金融体系进行了透彻地解析，是各方面认识了解中国金融发展历史和现状（包括新冠疫情期）的知识读本，也可以作为进一步研究探讨中国金融问题的重要参考。')
+
+predict('这是一本预测未来世界经济发展的奇书。今天在这个世界上，一场改变未来的无硝烟战争一触接发，导火索可以从AI技术;支付方式;物联网经济，乃至人体科学开启。之后，我们将走入一个超高速发展的时代，我们的工作方式;生活方式，甚至是生活的世界，都会有翻天覆地的变化。而这一切，都只是从一个小小的支付方式的变迁开始的……')
+
+predict('本书以航空发展史为轴，上溯人类数千年飞行梦想，下延新世纪航空未来，按时间顺序梳理了百余年航空发展的征程。本书不仅普及航空知识，而且普及科学精神。以讲故事的形式，讲述了航空历史中的重大事件和重要技术突破，介绍了躬行其中的航空先驱和技术精英，力图展现航空科学知识的深刻内涵与航空前辈的科学素养。通过本书提供的思维导图，可直观了解航空发展历程。书中精选了几百幅历史照片，尽展航空及航空人的风采。')
+
+predict('2020年岁尾，中央农村工作会议在京举行。习近平总书记出席会议并发表重要讲话。这也是党的十八大以来，他第三次出席这一重要会议。总书记在会上强调，我们要坚持用大历史观来看待农业、农村、农民问题。大历史观，何以观之？《时政新闻眼》为您解读。')
+
+
+
+
