@@ -1,0 +1,77 @@
+
+
+# 主要功能自定义设置
+Analysis_text = 'D:/Users/Desktop/pycharm/zhizhuwangshuju/data/词频统计.txt'        # 分析文档
+userdict = 'D:/Users/Desktop/pycharm/zhizhuwangshuju/data/userdict.txt'             # 用户词典
+StopWords = 'D:/Users/Desktop/pycharm/zhizhuwangshuju/data/stopword.txt'            # 停用词库
+number = 100                          # 统计个数
+Output = 'D:/Users/Desktop/pycharm/zhizhuwangshuju/out/词频输出.txt'                   # 输出文件
+background = '词频背景.jpg'           # 词频背景
+
+# 导入扩展库
+import re                           # 正则表达式库
+import jieba                        # 结巴分词
+import jieba.posseg                 # 词性获取
+import collections                  # 词频统计库
+from nltk import word_tokenize,pos_tag
+# 读取文件
+fn = open(Analysis_text,'r',encoding = 'UTF-8')  # 打开文件
+string_data = fn.read()                          # 读出整个文件
+fn.close()                                       # 关闭文件
+
+# 文本预处理
+pattern = re.compile(u'\t|\n|\.|-|:|;|\)|\(|\?|"') # 定义正则表达式匹配模式（空格等）
+string_data = re.sub(pattern, '', string_data)     # 将符合模式的字符去除
+
+# 动态调整词典
+jieba.suggest_freq('小小花', True)     #True表示该词不能被分割，False表示该词能被分割
+
+# 添加用户词典
+jieba.load_userdict(userdict)
+
+# 文本分词
+seg_list_exact = jieba.cut(string_data, cut_all=False, HMM=True)    # 精确模式分词+HMM
+object_list = []
+
+# 去除停用词（去掉一些意义不大的词，如标点符号、嗯、啊等）
+with open(StopWords, 'r', encoding='UTF-8') as meaninglessFile:
+    stopwords = set(meaninglessFile.read().split('\n'))
+stopwords.add(' ')
+for word in seg_list_exact:         # 循环读出每个分词
+    if word not in stopwords:       # 如果不在去除词库中
+        object_list.append(word)    # 分词追加到列表
+
+# 词频统计
+word_counts = collections.Counter(object_list)       # 对分词做词频统计
+word_counts_top = word_counts.most_common(number)    # 获取前number个最高频的词
+word_counts_top
+
+output = open(Output,'w',encoding='gbk')
+output.write('word\tcount\n')
+for i in range(len(word_counts_top)):
+    for j in range(len(word_counts_top[i])):
+        output.write(str(word_counts_top[i][j]))  #write函数不能写int类型的参数，所以使用str()转化
+        output.write('\t')  #相当于Tab一下，换一个单元格
+    output.write('\n')    #写完一行立马换行
+output.close()
+
+
+import jieba.posseg as peg
+in_str='''我与父亲不相见已二年余了，我最不能忘记的是他的背影。'''
+words=peg.cut(in_str)
+result1=''
+for word,flag in words:
+    temp="%s "%(word)
+    result1=result1+temp
+#A=''.join(result1).replace(" ",",")
+string_data2=word_tokenize(result1)
+string_data=str(string_data2)
+
+regex1="\w+"
+A=re.findall(regex1,string_data)
+dict=map(lambda x:x.lower(),A)#小写
+
+# 词频统计 全部小写的：
+word_counts = collections.Counter(dict)     # 对分词做词频统计
+word_counts_top1 = word_counts.most_common(number)  # 获取前number个最高频的词
+word_counts_top1
