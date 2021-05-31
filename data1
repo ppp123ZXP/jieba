@@ -1,0 +1,19 @@
+import pandas as pd
+# 主要功能自定义设置
+Analysis_text ='D:/Users/Desktop/pycharm/词频-词汇销量/data/指甲油.xlsx'       # 分析文档
+userdict = 'D:/Users/Desktop/pycharm/词频-词汇销量/data/userdict.txt'             # 用户词典
+StopWords = 'D:/Users/Desktop/pycharm/词频-词汇销量/data/stopword.txt'            # 停用词库
+number = 501                          # 统计个数
+output1='D:/Users/Desktop/pycharm/词频-词汇销量/out/标注/指甲油.txt'
+output2='D:/Users/Desktop/pycharm/词频-词汇销量/out/标注/指甲油-不分大小写.txt'
+
+df1=pd.read_excel(Analysis_text,sheet_name='Sheet1')
+df2=df1[['product_name']]
+
+
+def userdictlist(filepath):
+    userdict = [line.strip() for line in open(filepath, 'r', encoding='utf-8').readlines()]
+    return userdict
+userdict2= userdictlist(userdict)
+userdict1=map(lambda x:x.lower(),userdict2)#小写
+regex = '|'.join(userdict1)
