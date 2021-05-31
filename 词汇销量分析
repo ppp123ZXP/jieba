@@ -1,0 +1,392 @@
+import pandas as pd
+import string
+import jieba
+import time
+import os
+from tqdm import tqdm
+from utils.config import paths, zidian_path, output_paths, cls_map
+
+test_words_val = {}
+
+
+def load_stopwords(path='jieba_data/cn_stopwords_general.txt'):
+    stopwords = []
+    with open(path, 'r', encoding='utf8') as f:
+        for line in f:
+            stopwords.append(line.replace('\n', ''))
+    return stopwords
+
+
+params_map = {'spu全称': 'spu全称', 'SKU销量': 'sku_sales_amt', '产品URL': 'goods_url', '产品首页图片': 'sku_pic_url',
+              'SKU名称': 'sku_name'}
+
+
+def statistics_sale_values(data, stopwords, num=0):
+    '''
+    将所有商品的短语按照销量排序，并输出
+    '''
+    data_ = data[['spu_name', 'sku_name', 'spu_subtitle', 'sku_sales_amt', 'goods_url', 'sku_pic_url']]
+    # fzp_sku = data[['SKU名称','SKU销量','spu名称','spu副标题','产品URL','产品首页图片']]
+    data_.fillna('', inplace=True)
+    # fzp_sku.fillna('',inplace=True)
+
+    data_['spu全称'] = data_['spu_name'] + ' ' + data_['spu_subtitle']
+    spu_word_freq = statistics_sale_value(data_, stopwords, params={'key': 'spu全称', 'params_map': params_map})
+    sku_word_freq = statistics_sale_value(data_, stopwords, params={'key': 'sku_name', 'params_map': params_map})
+    if num == 0:
+        return spu_word_freq, sku_word_freq
+    else:
+        return spu_word_freq[:num], sku_word_freq[:num]
+
+
+def statistics_sale_value(data, stopwords, params={'key': 'spu全称', 'params_map': params_map}):
+    '''
+    计算词汇销量及每个词汇涉及到的最优销量SKU的相关值
+    :param data:所有商品，商品中的参数包括params中的值，如眼影['sent','销量']
+           stopwords:停用词
+           params：商品中需要的参数
+    :return words_sales:按照词汇总销量排序后的所有词汇
+            如：words_sales['9色'] = {'词汇总销量':980000,
+                                     'sku图片':'',
+                                     'sku_url':'https://detail.tmall.com/item.htm?id=589370353886&skuId=4482545403705',
+                                     'spu全称':'【618预售】完美日记动物眼影2盘装锦鲤小狗猫咪斑虎小猪熊猫盘女',
+                                     'sku销量':58000，
+                                     'sku名称':''}
+    '''
+    words_sales_dict = {}
+    max_sale_values = -1
+    # max_sale_dict = {'word':'','sku图片':'','sku_url':'','spu全称':'','sku销量':0}
+    for idx, row in data.iterrows():
+        # print(type(row))
+        # print('row:',row)
+        sent = row[params['key']]
+        sales = row[params['params_map']['SKU销量']]
+        word = list(jieba.cut(sent.replace(' ', ''), cut_all=False))
+        word = [item for item in word if item not in stopwords]
+        if len(word) < 1:
+            continue
+        # if max_sale_values < sales:
+        for item in word:
+            if item in string.punctuation:
+                continue
+            if len(item) < 2:
+                continue
+            if item.isdigit():
+                continue
+            if '.' in item:
+                continue
+            if '%' in item or '%' in item:
+                continue
+            if item == 'nan':
+                continue
+            if item in words_sales_dict:
+                words_param_dict = words_sales_dict[item]
+                sales_previous = words_param_dict['词汇总销量']
+                new_sales = sales_previous + int(sales)
+                words_param_dict['词汇总销量'] = new_sales
+                '''if item in test_words_val:
+                    current_sales = test_words_val[item]['current_sales']
+                    current_sales.append(sales)
+                    test_words_val[item] = {'current_sales':current_sales,'max_sales:':words_param_dict['sku销量']}
+                else:
+                    test_words_val[item] = {'current_sales':[sales],'max_sales:':words_param_dict['sku销量'],'first_sales':int(sales)}'''
+                # 如果已经存在的最优销量的SKU小于当前SKU的销量，则更新当前词对应的最有销量的SKU
+                if words_param_dict['sku销量'] < sales:
+                    words_param_dict['sku图片'] = row[params['params_map']['产品首页图片']]
+                    words_param_dict['spu全名'] = row[params['params_map']['spu全称']]
+                    words_param_dict['sku_url'] = row[params['params_map']['产品URL']]
+                    words_param_dict['sku销量'] = int(sales)
+                    words_param_dict['sku名称'] = row[params['params_map']['SKU名称']]
+                words_sales_dict[item] = words_param_dict
+            else:
+                words_param_dict = {'词汇总销量': -1, 'sku图片': '', 'sku_url': '', 'spu全名': '', 'sku销量': -1, 'sku名称': ''}
+                words_param_dict['词汇总销量'] = int(sales)
+                words_param_dict['sku销量'] = int(sales)
+                words_param_dict['sku图片'] = row[params['params_map']['产品首页图片']]
+                words_param_dict['sku_url'] = row[params['params_map']['产品URL']]
+                words_param_dict['spu全名'] = row[params['params_map']['spu全称']]
+                words_param_dict['sku名称'] = row[params['params_map']['SKU名称']]
+                words_sales_dict[item] = words_param_dict
+                test_words_val[item] = {'current_sales': [sales], 'max_sales': words_param_dict['sku销量'],
+                                        'first_sales': int(sales)}
+
+    words_sales = sorted(words_sales_dict.items(), key=lambda x: x[1]['词汇总销量'], reverse=True)
+    return words_sales
+
+
+def statistics_frequency_has_words(fzp, word_freq, stopwords, num=0, label='spu'):
+    rtn_word_freq = {}
+    if label == 'spu':
+        fzp['sents'] = fzp['spu_name'] + ' ' + fzp['spu_subtitle']
+    elif label == 'sku':
+        fzp['sents'] = fzp[['sku_name']]
+    else:
+        pass
+    for i in word_freq:
+        word = i[0]
+        freq = i[1]
+        if (not isinstance(word, str)) and len(word) < 2:
+            continue
+        try:
+            fzp_sub = fzp[fzp['sents'].str.contains(r'\b' + word)]
+        except Exception:
+            pass
+        word_freq_tmp = statistics_sale_values(fzp_sub, stopwords, num)
+        for item in word_freq_tmp:
+            if word in item:
+                word_freq_tmp.remove(item)
+                break
+        if num == 0:
+            rtn_word_freq[word] = word_freq_tmp
+        else:
+            rtn_word_freq[word] = word_freq_tmp[:num]
+    return rtn_word_freq
+
+
+def analyze_attribute_word_sale(paths, stopwords, num1=0, num2=0):
+    path = paths[0]
+    sheet = paths[1]
+    fzp = pd.read_csv(path, encoding='utf8')
+    fzp.fillna('', inplace=True)
+    spu, sku = statistics_sale_values(fzp, stopwords, num1)
+    spu_sub = statistics_frequency_has_words(fzp, spu, stopwords, num2)  # 计算spu中的20个单词，取出包含该单词的所有数据，并计算在这些数据中的词频
+    sku_sub = statistics_frequency_has_words(fzp, sku, stopwords, num2, label='sku')
+    return spu_sub, sku_sub
+
+
+def write_word_freq_level1(paths, num, out_file_name, stopwords):
+    rst = []
+    path = paths[0]
+    sheet = paths[1]
+    # for pl_name,path_sheet in paths.items():
+    pinlei = pd.read_csv(path, encoding='utf8')
+    # pinlei.rename(columns={'SPU销量':'销量','SKU销量':'销量','SKU名称':'sent'},inplace=True)
+    spu, sku = statistics_sale_values(pinlei, stopwords, num)
+    # rst.append(pl_name+':\n')
+    rst.append('spu:\n')
+    rst.append(
+        'spu词汇' + '\t' + '词汇总销量' + '\t' + 'spu全名' + '\t' + 'sku名称' + '\t' + 'sku销量' + '\t' + '产品图片' + '\t' + '产品URL' + '\n')
+    for i in spu:
+        rst.append(
+            i[0] + '\t' + str(i[1]['词汇总销量']) + '\t' + str(i[1]['spu全名']) + '\t' + str(i[1]['sku名称']) + '\t' + str(
+                i[1]['sku销量']) + '\t' + str(i[1]['sku图片']) + '\t' + str(i[1]['sku_url']) + '\n')
+    rst.append('\n')
+    rst.append('sku:\n')
+    for i in sku:
+        # print(i[1].keys())
+        rst.append(
+            i[0] + '\t' + str(i[1]['词汇总销量']) + '\t' + str(i[1]['spu全名']) + '\t' + str(i[1]['sku名称']) + '\t' + str(
+                i[1]['sku销量']) + '\t' + str(i[1]['sku图片']) + '\t' + str(i[1]['sku_url']) + '\n')
+    rst.append('\n')
+    with open(out_file_name, 'w', encoding='utf8') as f:
+        f.write(''.join(rst))
+    return rst
+
+
+def write_word_freq_level2(spu, sku, out_file_name):
+    rst = []
+    rst.append('spu:\n')
+    rst.append(
+        'spu词汇' + '\t' + '词汇总销量' + '\t' + 'spu全名' + '\t' + 'sku名称' + '\t' + 'sku销量' + '\t' + '产品图片' + '\t' + '产品URL' + '\n')
+    for word, word_freq in spu.items():
+        if not len(word_freq):
+            continue
+        rst.append('\n')
+        rst.append(word + ':\n')
+        if isinstance(word_freq[0], list):
+            word_freq_cur = word_freq[0]
+        elif isinstance(word_freq[0], tuple):
+            word_freq_cur = word_freq
+        for j in word_freq_cur:
+            if j[0] == word:
+                continue
+            rst.append(
+                j[0] + '\t' + str(j[1]['词汇总销量']) + '\t' + str(j[1]['spu全名']) + '\t' + str(j[1]['sku名称']) + '\t' + str(
+                    j[1]['sku销量']) + '\t' + str(j[1]['sku图片']) + '\t' + str(j[1]['sku_url']) + '\n')
+
+    rst.append('\n')
+    rst.append('sku:\n')
+    for word, word_freq in sku.items():
+        if not len(word_freq):
+            continue
+        # break
+        rst.append('\n')
+        rst.append(word + ':\n')
+        if isinstance(word_freq[0], list):
+            word_freq_cur = word_freq[0]
+        elif isinstance(word_freq[0], tuple):
+            word_freq_cur = word_freq
+        for j in word_freq_cur:
+            # for j in word_freq[0]:
+            if j[0] == word: continue
+            # rst.append(j[0] + '\t' + str(j[1]['词汇总销量']) + '\n')
+            rst.append(
+                j[0] + '\t' + str(j[1]['词汇总销量']) + '\t' + str(j[1]['spu全名']) + '\t' + str(j[1]['sku名称']) + '\t' + str(
+                    j[1]['sku销量']) + '\t' + str(j[1]['sku图片']) + '\t' + str(j[1]['sku_url']) + '\n')
+    rst.append('\n')
+
+    with open(out_file_name, 'w', encoding='utf8') as f:
+        f.write(''.join(rst))
+    return rst
+
+
+def get_word_sale_value_level1(paths, stopwords, num=0):
+    rst = []
+    path = paths[0]
+    sheet = paths[1]
+    # for pl_name,path_sheet in paths.items():
+    pinlei = pd.read_csv(path, encoding='utf-8')
+    # pinlei.rename(columns={'SPU销量':'销量','SKU销量':'销量','SKU名称':'sent'},inplace=True)
+    spu, sku = statistics_sale_values(pinlei, stopwords, num)
+    # rst.append(pl_name+':\n')
+    for i in spu:
+        rst.append(i[0])
+    for i in sku:
+        rst.append(i[0])
+    return rst
+
+
+def get_word_sale_value_level2(spu, sku):
+    rst = []
+    for word, word_freq in spu.items():
+        if not len(word_freq):
+            continue
+        if isinstance(word_freq[0], list):
+            word_freq_cur = word_freq[0]
+        elif isinstance(word_freq[0], tuple):
+            word_freq_cur = word_freq
+        for j in word_freq_cur:
+            # for j in word_freq[0]:
+            if j[0] == word:
+                continue
+            rst.append(j[0])
+    for word, word_freq in sku.items():
+        if not len(word_freq):
+            continue
+        if isinstance(word_freq[0], list):
+            word_freq_cur = word_freq[0]
+        elif isinstance(word_freq[0], tuple):
+            word_freq_cur = word_freq
+        for j in word_freq_cur:
+            # for j in word_freq[0]:
+            if j[0] == word: continue
+            rst.append(j[0])
+    return rst
+
+
+def get_dalei_name(pinlei_name):
+    for key, val in cls_map.items():
+        if pinlei_name in val:
+            return key
+    return pinlei_name
+
+
+def write_to_file_with_level1_level2_words():
+    '''
+    分别将每一个细类的按照销量排序的一级词语和二级词语写入文件
+    '''
+    rst = []
+    stopwords = load_stopwords()
+    pinlei_words_dict = {}
+    data_dict = {}
+    for pinlei_name, path in tqdm(paths.items()):
+        jieba.load_userdict(zidian_path[pinlei_name][0])
+        # print(pinlei_name)
+        stopwords_pinlei = load_stopwords(zidian_path[pinlei_name][1])
+        #print('stopwords:{}'.format(stopwords_pinlei))
+        stopwords.extend(stopwords_pinlei)
+        print('认证' in stopwords)
+        print('布鲁可' in stopwords)
+        print('教具' in stopwords)
+        print(list(jieba.cut('来来无毛刺在各个校园都有哦吗？',cut_all=False)))
+        dalei_name = get_dalei_name(pinlei_name)
+
+        words_level1 = write_word_freq_level1(paths[pinlei_name], 20, os.path.join(output_paths[dalei_name + '销量词汇'],
+                                                                                   pinlei_name + '_一级_词汇销量' + time.strftime(
+                                                                                       "%Y%m%d",
+                                                                                       time.localtime()) + '.txt'),
+                                              stopwords)
+        spu_sub, sku_sub = analyze_attribute_word_sale(paths[pinlei_name], stopwords, num1=20, num2=20)
+        words_leve2 = write_word_freq_level2(spu_sub, sku_sub, os.path.join(output_paths[dalei_name + '销量词汇'],
+                                                                            pinlei_name + '_二级_词汇销量' + time.strftime(
+                                                                                "%Y%m%d", time.localtime()) + '.txt'))
+
+    # return data_dict
+
+
+def get_level1_level2_cut_words():
+    '''
+    分别将每一个细类的按照销量排序的一级词语和二级词语写入文件
+    '''
+    rst = []
+    stopwords = load_stopwords()
+    pinlei_words_dict = {}
+    for pinlei_name, path in paths.items():
+        jieba.load_userdict(zidian_path[pinlei_name][0])
+        stopwords_pinlei = load_stopwords(zidian_path[pinlei_name][1])
+        stopwords.extend(stopwords_pinlei)
+
+        level1 = write_word_freq_level1(paths[pinlei_name], 20,
+                                        pinlei_name + '一级词汇销量' + time.strftime("%Y%m%d", time.localtime()) + '.txt',
+                                        stopwords)
+        # spu_sub,sku_sub = analyze_attribute_word_sale(paths[pinlei_name],stopwords,num1=20,num2=20)
+        # level2 = write_word_freq_level2(spu_sub,sku_sub,pinlei_name + '二级词汇销量' + time.strftime("%Y%m%d",time.localtime()) + '.txt')
+        # words = []
+        # words.extend(level1)
+        # words.extend(level2)
+        # words = list(set(words))
+        # words_df = pd.DataFrame(words)
+        # words_df.to_excel(output_paths[pinlei_name],index=0)
+
+
+def cal_all_words_sale_values():
+    '''
+    获取所有短语
+    '''
+    rst = []
+    stopwords = load_stopwords()
+    for pinlei_name, path in paths.items():
+        # jieba.load_userdict(zidian_path[pinlei_name][0])
+        # stopwords_pinlei = load_stopwords(zidian_path[pinlei_name][1])
+        # stopwords.extend(stopwords_pinlei)
+        words = []
+        level1 = get_word_sale_value_level1(paths[pinlei_name], stopwords)
+        spu_sub, sku_sub = analyze_attribute_word_sale(paths[pinlei_name], stopwords)
+        level2 = get_word_sale_value_level2(spu_sub, sku_sub)
+        rst.extend(level1)
+        rst.extend(level2)
+        words.extend(level1)
+        words.extend(level2)
+        words = list(set(words))
+        words_df = pd.DataFrame(words)
+        words_df.to_excel(output_paths[pinlei_name], index=0)
+    return rst
+
+
+# 获取所有的一级、二级销量
+start = time.time()
+write_to_file_with_level1_level2_words()
+end = time.time()
+print('运行时间：', end - start)
+get_level1_level2_cut_words()
+# 获取所有的cut words
+rst = cal_all_words_sale_values()
+# print(len(rst))
+
+'''stopwords = load_stopwords()
+for pinlei_name,path in paths.items():
+    ph = path[0]
+    sheet = path[1]
+    print('ph:',ph)
+    print('sheet:',sheet)
+    pinlei = pd.read_excel(ph,sheet_name=sheet)
+    a,b = statistics_sale_values(pinlei,stopwords,20)
+    print(a)
+    print(b)'''
+'''
+vals = test_words_val['白色']
+print(vals.keys())
+#for key,val in vals.items():
+#   print(val)
+print('first_val:' + str(vals['first_sales']) + 'max_val:' + str(vals['max_sales']) + ',current_max_val:' + str(max(vals['current_sales'])) )
+'''
