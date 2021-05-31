@@ -1,0 +1,261 @@
+import pandas as pd
+import string
+import jieba
+from utils.config import paths, zidian_path
+
+
+def load_stopwords(path='jieba_data/cn_stopwords_general.txt'):
+    stopwords = []
+    with open(path, 'r', encoding='utf8') as f:
+        for line in f:
+            stopwords.append(line.replace('\n', ''))
+    return stopwords
+
+
+def statistics_word_frequency(sents, stopwords):
+    words_dict = {}
+    for sent in sents:
+        word = list(jieba.cut(sent.replace(' ', ''), cut_all=False))
+        if len(word) < 1:
+            continue
+        # print(word)
+        '''words = []
+        print(type(stopwords))
+        print(stopwords)
+        for item in word:
+            print(item)
+            print(type(item))
+            if item not in stopwords:
+                words.append(item)
+        break'''
+        word = [item for item in word if item not in stopwords]
+        for item in word:
+            if item in string.punctuation:
+                continue
+            if len(item) == 1:
+                continue
+            if item.isdigit():
+                continue
+            if '.' in item:
+                continue
+            if item in words_dict:
+                words_dict[item] += 1
+            else:
+                words_dict[item] = 1
+    words_dict = sorted(words_dict.items(), key=lambda x: x[1], reverse=True)
+    return words_dict
+
+
+def statistics_frequency(fzp, stopwords, num=0):
+    fzp_spu = fzp[['product_name']]
+    fzp_sku = fzp[['product_name']]
+    fzp_spu.fillna('', inplace=True)
+    fzp_sku.fillna('', inplace=True)
+    fzp_spu['sent'] = fzp_spu['product_name']
+    spu_word_freq_dict = statistics_word_frequency(list(fzp_spu['sent']), stopwords)
+    sku_word_freq_dict = statistics_word_frequency(list(fzp_sku['product_name']), stopwords)
+    return (spu_word_freq_dict, sku_word_freq_dict) if num == 0 else (
+    spu_word_freq_dict[:num], sku_word_freq_dict[:num])
+
+
+def statistics_frequency_has_words(fzp, word_freq, stopwords, num=0, label='spu'):
+    rtn_word_freq = {}
+    if label == 'spu':
+        fzp['sents'] = fzp['product_name']
+    elif label == 'sku':
+        fzp['sents'] = fzp[['product_name']]
+    else:
+        pass
+
+    for i in word_freq:
+        word = i[0]
+        freq = i[1]
+        if not isinstance(word, str) and len(word) < 2:
+            continue
+        # fzp_sub = fzp[fzp['sents'].str.contains(word)]
+        print(word)
+        try:
+            fzp_sub = fzp[fzp['sents'].str.contains(word)]
+        except Exception:
+            print('----------------------------')
+            print(word)
+            pass
+        word_freq_tmp = statistics_word_frequency(list(fzp_sub['sents']), stopwords)
+        for item in word_freq_tmp:
+            if word in item:
+                word_freq_tmp.remove(item)
+                break
+        rtn_word_freq[word] = word_freq_tmp if num == 0 else word_freq_tmp[:num]
+    return rtn_word_freq
+
+
+def analyze_attribute_word_freq(paths, stopwords, num1=0, num2=0):
+    # fzp = pd.read_excel('data/目标1人工打标细类汇总/旅行分装瓶类（含空瓶+套装两细类）-人工打标20201231.xlsx',sheet_name='分装瓶核心')
+    path = paths[0]
+    sheet = paths[1]
+    fzp = pd.read_excel(path, sheet_name=sheet)
+    fzp.fillna('', inplace=True)
+    spu, sku = statistics_frequency(fzp, stopwords, num1)
+    spu_sub = statistics_frequency_has_words(fzp, spu, stopwords, num2)  # 计算spu中的20个单词，取出包含该单词的所有数据，并计算在这些数据中的词频
+    sku_sub = statistics_frequency_has_words(fzp, sku, stopwords, num2, label='sku')
+    return spu_sub, sku_sub
+
+
+def get_word_freq_level1(paths, stopwords, num=0):
+    rst = []
+    path = paths[0]
+    sheet = paths[1]
+    # for pl_name,path_sheet in paths.items():
+    pinlei = pd.read_excel(path, sheet_name=sheet)
+    # pinlei.rename(columns={'SPU销量':'销量','SKU销量':'销量','SKU名称':'sent'},inplace=True)
+    (spu, sku) = statistics_frequency(pinlei, stopwords, num)
+    # rst.append(pl_name+':\n')
+    for i in spu:
+        rst.append(i[0])
+    for i in sku:
+        rst.append(i[0])
+    return rst
+
+
+def get_word_freq_level2(spu, sku):
+    rst = []
+    for word, word_freq in spu.items():
+        if not len(word_freq):
+            continue
+        if isinstance(word_freq[0], list):
+            word_freq_cur = word_freq[0]
+        else:
+            word_freq_cur = word_freq
+        for j in word_freq_cur:
+            if j[0] == word:
+                continue
+            rst.append(j[0])
+    for word, word_freq in sku.items():
+        if not len(word_freq):
+            continue
+        if isinstance(word_freq[0], list):
+            word_freq_cur = word_freq[0]
+        elif isinstance(word_freq[0], tuple):
+            word_freq_cur = word_freq
+        for j in word_freq_cur:
+            # for j in word_freq[0]:
+            if j[0] == word:
+                continue
+            rst.append(j[0])
+    return rst
+
+
+def write_word_freq_level1(paths, num, out_file_name, stopwords):
+    rst = []
+    path = paths[0]
+    sheet = paths[1]
+    # for pl_name,path_sheet in paths.items():
+    pinlei = pd.read_excel(path, sheet_name=sheet)
+    spu, sku = statistics_frequency(pinlei, stopwords, num)
+    # rst.append(pl_name+':\n')
+    rst.append('spu:\n')
+    for i in spu:
+        rst.append(i[0] + '\t' + str(i[1]) + '\n')
+    rst.append('sku:\n')
+    for i in sku:
+        rst.append(i[0] + '\t' + str(i[1]) + '\n')
+    rst.append('\n')
+    with open(out_file_name, 'w', encoding='utf8') as f:
+        f.write(''.join(rst))
+
+
+def write_word_freq_level2(spu, sku, out_file_name):
+    rst = []
+    rst.append('spu:\n')
+    for word, word_freq in spu_sub.items():
+        if not len(word_freq):
+            continue
+        rst.append('\n')
+        rst.append(word + ':\n')
+        # print(word_freq)
+        if isinstance(word_freq[0], list):
+            word_freq_cur = word_freq[0]
+        elif isinstance(word_freq[0], tuple):
+            word_freq_cur = word_freq
+        for j in word_freq_cur:
+            # for j in word_freq:
+            # print(j[0])
+            # print(j[1])
+            rst.append(j[0] + '\t' + str(j[1]) + '\n')
+
+    rst.append('\n')
+    rst.append('sku:\n')
+    for word, word_freq in sku_sub.items():
+        if not len(word_freq):
+            continue
+        rst.append('\n')
+        rst.append(word + ':\n')
+        if isinstance(word_freq[0], list):
+            word_freq_cur = word_freq[0]
+        elif isinstance(word_freq[0], tuple):
+            word_freq_cur = word_freq
+        for j in word_freq_cur:
+            # for j in word_freq:
+            rst.append(j[0] + '\t' + str(j[1]) + '\n')
+    rst.append('\n')
+
+    with open(out_file_name, 'w', encoding='utf8') as f:
+        f.write(''.join(rst))
+
+
+def write_to_file_with_level1_level2_words():
+    '''
+    分别将每一个细类的按照词频排序的一级词语和二级词语写入文件
+    '''
+    rst = []
+    for pinlei_name, path in paths.items():
+        jieba.load_userdict(zidian_path[pinlei_name][0])
+        stopwords = load_stopwords()
+        stopwords_pinlei = load_stopwords(zidian_path[pinlei_name][1])
+        stopwords.extend(stopwords_pinlei)
+
+        write_word_freq_level1(paths[pinlei_name], 20, pinlei_name + '一级词频20210126.txt', stopwords)
+        spu_sub, sku_sub = analyze_attribute_word_freq(paths[pinlei_name], stopwords, num1=20, num2=20)
+        write_word_freq_level2(spu_sub, sku_sub, pinlei_name + '二级词频20210126.txt')
+
+
+def cal_all_words_freq():
+    '''
+    获取所有短语
+    '''
+    rst = []
+    stopwords = load_stopwords()
+    for pinlei_name, path in paths.items():
+        jieba.load_userdict(zidian_path[pinlei_name][0])
+        stopwords_pinlei = load_stopwords(zidian_path[pinlei_name][1])
+        stopwords.extend(stopwords_pinlei)
+        level1 = get_word_freq_level1(paths[pinlei_name], stopwords)
+        spu_sub, sku_sub = analyze_attribute_word_freq(paths[pinlei], stopwords)
+        level2 = get_word_freq_level2(spu_sub, sku_sub)
+        rst.append(level1)
+        rst.append(level2)
+    return rst
+
+
+def write_datas(output_file='D:/Users/Desktop/pycharm/项目/program/ciping.txt'):
+    '''获取所有的句子'''
+    rst = []
+    stopwords = load_stopwords()
+    for pinlei_name, path in paths.items():
+        jieba.load_userdict(zidian_path[pinlei_name][0])
+        stopwords_pinlei = load_stopwords(zidian_path[pinlei_name][1])
+        stopwords.extend(stopwords_pinlei)
+        pinlei = pd.read_excel(path[0], sheet_name=path[1])
+        pinlei['sents'] = pinlei['sents']
+        pinlei['sents'] = pinlei['sents'].apply(lambda x: str(x))
+        for sent in list(pinlei['sents']):
+            word = list(jieba.cut(sent.replace(' ', ''), cut_all=False))
+            # if len(word) < 1:
+            #    continue
+            word = [item for item in word if item not in stopwords]
+            if len(word) < 2:
+                continue
+            new_sent = ' '.join(word)
+            rst.append(new_sent)
+    with open(output_file, 'w', encoding='utf-8') as f:
+        f.write('\n'.join(rst))
