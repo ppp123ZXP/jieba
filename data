@@ -1,0 +1,5 @@
+data1='D:/Users/Desktop/pycharm/词频-词汇销量/data/词汇销量/创意家居_公仔_3months.csv'
+
+stopword='D:/Users/Desktop/pycharm/词频-词汇销量/data/stopword.txt'
+
+userdict='D:/Users/Desktop/pycharm/词频-词汇销量/data/userdict.txt'
