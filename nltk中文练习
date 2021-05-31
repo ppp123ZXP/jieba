@@ -1,0 +1,24 @@
+import nltk
+from nltk.corpus import sinica_treebank  # 带标注的中文语料库
+
+
+# 用print输出本地字符格式
+def dump_result(result):
+    for item in result:
+        item[0], ",", item[1]
+
+# 等标注的词，以空格分词（分词问题不在此讨论）
+raw = '讓 人工 智能 能夠 更 有效地 甄別 虛假 和 低俗 內容 並 控制 其 傳播 是 當前 業界 和 學界 要 重點 研究 的 問題'.decode('utf-8')
+tokens = nltk.word_tokenize(raw)
+
+sinica_treebank_tagged_sents = sinica_treebank.tagged_sents()  # 以句为单位标
+size = int(len(sinica_treebank_tagged_sents) * 0.9)
+train_sents = sinica_treebank_tagged_sents[:size]  # 90% 数据作为训练集
+test_sents = sinica_treebank_tagged_sents[size:]  # 10% 数据作为测试集
+
+t0 = nltk.DefaultTagger('Nab')  # 词性的默认值为名词
+t1 = nltk.UnigramTagger(train_sents, backoff=t0)  # 一元标注
+t2 = nltk.BigramTagger(train_sents, backoff=t1)  # 多元（二元）标注
+
+dump_result(t2.tag(tokens))
+t2.evaluate(test_sents)  # 根据带标注的文本，评估标注器的正确率
