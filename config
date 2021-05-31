@@ -1,0 +1,145 @@
+#主机10.230.5.3:9187   账号密码都是：minisotest, db: bsa, table: tmall_product_2020-9-11 
+
+#mongo --host 10.232.16.5:9187 -u miniso2020 -p Nvt07t6AyE  --authenticationDatabase admin
+
+CONFIG = {
+    'host':'10.230.5.3',
+    'port':9187,
+    'user':'minisotest',
+    'password':'minisotest',
+    'database':'bsa',
+    #'authenticationDatabase':'yuqing'
+}
+
+uri = "mongodb://" + CONFIG['user'] + ":" + CONFIG['password'] + "@" + CONFIG['host'] + \
+      ":" + str(CONFIG['port']) + "/" + CONFIG['database'] + "?" #+ "authSource=" + \
+          #CONFIG['authenticationDatabase']
+
+zidian_path = {
+    #'盲盒':['jieba_data/wanju_manghe_userdict.txt','jieba_data/wanju_manghe_stopwords.txt'],
+    #'饼干膨化':['jieba_data/lingshi_bingganpenghua_userdict.txt','jieba_data/lingshi_bingganpenghua_stopwords.txt'],
+    #'糖果果冻':['jieba_data/lingshi_tangguoguodong_userdict.txt','jieba_data/lingshi_tangguoguodong_stopwords.txt'],
+    #'糕点点心':['jieba_data/lingshi_gaodiandianxin_userdict.txt','jieba_data/lingshi_gaodiandianxin_stopwords.txt'],
+    #'肉脯熟食':['jieba_data/lingshi_roupushushi_userdict.txt','jieba_data/lingshi_roupushushi_stopwords.txt'],
+    #'坚果':['jieba_data/lingshi_jianguo_userdict.txt','jieba_data/lingshi_jianguo_stopwords.txt'],
+    #'巧克力':['jieba_data/lingshi_qiaokeli_userdict.txt','jieba_data/lingshi_qiaokeli_stopwords.txt'],
+    #'饮料饮品':['jieba_data/lingshi_yinliaoyinpin_userdict.txt','jieba_data/lingshi_yinliaoyinpin_stopwords.txt'],
+    #'咖啡':['jieba_data/lingshi_kafei_userdict.txt','jieba_data/lingshi_kafei_stopwords.txt'],
+    #'#果干蜜饯':['jieba_data/lingshi_guoganmijian_userdict.txt','jieba_data/lingshi_guoganmijian_stopwords.txt'],
+    #'#方便速食':['jieba_data/lingshi_fangbiansushi_userdict.txt','jieba_data/lingshi_fangbiansushi_stopwords.txt'],
+    #'豆干蔬菜干':['jieba_data/lingshi_douganshucaigan_userdict.txt','jieba_data/lingshi_douganshucaigan_stopwords.txt'],
+    #'酒':['jieba_data/lingshi_jiu_userdict.txt','jieba_data/lingshi_jiu_stopwords.txt'],
+    #'粉饼蜜粉':['jieba_data/caizhuang_fenbingmifen_userdict.txt','jieba_data/caizhuang_fenbingmifen_stopwords.txt'],
+    #'女士香水':['jieba_data/caizhuang_nvshixiangshui_userdict.txt','jieba_data/caizhuang_nvshixiangshui_stopwords.txt'],
+    #'眼线笔':['jieba_data/caizhuang_yanxianbi_userdict.txt','jieba_data/caizhuang_yanxianbi_stopwords.txt'],
+    #'睫毛膏':['jieba_data/caizhuang_jiemaogao_userdict.txt','jieba_data/caizhuang_jiemaogao_stopwords.txt'],
+    #'指甲油':['jieba_data/caizhuang_zhijiayou_userdict.txt','jieba_data/caizhuang_zhijiayou_stopwords.txt'],
+    #'口红':['jieba_data/caizhuang_kouhong_userdict.txt','jieba_data/caizhuang_kouhong_stopwords.txt'],
+    #'护唇膏':['jieba_data/hufu_huchungao_userdict.txt','jieba_data/hufu_huchungao_stopwords.txt'],
+    #'手霜':['jieba_data/hufu_shoushuang_userdict.txt','jieba_data/hufu_shoushuang_stopwords.txt'],
+    #'眼影':['jieba_data/caizhuang_yanying_userdict.txt','jieba_data/caizhuang_yanying_stopwords.txt'],
+    # '口红':['jieba_data/彩妆/彩妆_口红_userdict.txt','jieba_data/彩妆/彩妆_口红_stopwords.txt'],
+     #'洗脸巾':['jieba_data/洗护/洗护_洗脸巾_userdict.txt','jieba_data/洗护/洗护_洗脸巾_stopwords.txt'],
+    #'肉脯熟食':['jieba_data/零食/零食_肉脯熟食_userdict.txt','jieba_data/零食/零食_肉脯熟食_stopwords.txt'],
+      #'香薰':['jieba_data/创意家居/创意家居_香薰_userdict.txt','jieba_data/创意家居/创意家居_香薰_stopwords.txt']
+     #'变形玩具':['jieba_data/玩具/玩具_变形玩具_userdict.txt','jieba_data/玩具/玩具_变形玩具_stopwords.txt']
+     # '毛巾':['jieba_data/生活百货/生活百货_毛巾_userdict.txt','jieba_data/生活百货/生活百货_毛巾_stopwords.txt']
+#'彩泥':['jieba_data/玩具/玩具_彩泥_userdict.txt','jieba_data/玩具/玩具_彩泥_stopwords.txt'],
+'口气清新':['jieba_data/洗护202104/洗护_口气清新_userdict.txt','jieba_data/洗护202104/洗护_口气清新_stopwords.txt']
+}
+
+cls_map = {#'彩妆':['粉饼蜜粉','女士香水','睫毛膏','眼线笔','口红','眉笔','美甲贴','男士香水','腮红','卸妆水','指甲油','眼影','睫毛膏滋养液'],
+           #'美妆工具':['化妆扑','梳子','旅行套装','化妆刷','眉刀','化妆镜','修甲工具']
+           #'护肤':['护唇膏','手霜','洁面乳','防晒霜_乳','身体乳','面膜','化妆水','女士护肤套装','香体_走珠','化妆水','身体乳霜']
+           #'数码电器':['入耳式耳机','苹果数据线','蓝牙音箱','安卓数据线','充电器','移动电源']
+    #'创意家居':['U型枕','车载香薰','地垫','公仔','香薰','香包','擦手巾','香薰'],
+          # '季节产品':['口罩','棉拖','女士高筒袜','女士袜套','男士袜套','丝袜','男士中筒袜','迷你小风扇','男士内裤','毛线帽']
+           #'生活百货':['毛巾']
+           # '玩具':['变形玩具','体育玩具','惯性玩具','积木拼插','彩泥','益智玩具'],
+            #'零食':['饼干膨化','豆干蔬菜干','糕点点心','海味零食','巧克力','糖果果冻','肉脯熟食'],
+            #'文具':['精装本','笔']
+          '洗护':['牙贴','牙粉','口气清新','干发喷雾','洗脸巾','洗手液','牙膏','沐浴露','化妆棉','棉签','沐浴露','湿纸巾','卫生巾','卸妆巾','牙线','纸巾','牙刷','纸巾']
+#'饰品系列':['耳饰','发夹']
+#'精品包饰':['化妆包','配饰挂件','创意摆件','双肩包','斜挎包','胸针','创意摆件']
+#'食品类':['海味零食','巧克力','肉脯熟食','糖果果冻','饮料饮品']
+           }
+
+output_paths = {
+    #'酒':'generate_data/cut_words/jiu_cut_words.xlsx',
+    #'海味零食':'generate_data/cut_words/haiweilingshi_cut_words.xlsx',
+    #'其他零食':'generate_data/cut_words/qitalingshi_cut_words.xlsx',
+    #'茶叶花茶':'generate_data/cut_words/chayehuacha_cut_words.xlsx',
+    #'谷粉豆浆':'generate_data/cut_words/gufendoujiang_cut_words.xlsx',
+    #'奶粉':'generate_data/cut_words/naifen_cut_words.xlsx',
+    #'眼影':'jieba_data/caizhuang_yanying_cut_words.xlsx',
+    #'变形玩具':'jieba_data/玩具/玩具_变形玩具_cut_words.xlsx',
+     #'毛巾':'jieba_data/生活百货/生活百货_毛巾_cut_words.xlsx',
+     #'口红':'jieba_data/彩妆/彩妆_口红_cut_words.xlsx',
+    #'洗脸巾':'jieba_data/洗护/美妆工具_洗脸巾_cut_words.xlsx',
+#'肉脯熟食':'jieba_data/零食/食品类_肉脯熟食_cut_words.xlsx',
+#'香薰':'jieba_data/创意家居/创意家居_香薰_cut_words.xlsx',
+#'彩泥':'jieba_data/玩具/玩具_彩泥_cut_words.xlsx',
+#'益智玩具':'jieba_data/玩具/玩具_益智玩具_cut_words.xlsx',
+'口气清新':'jieba_data/洗护202104/洗护_口气清新_cut_words.xlsx',
+    #'彩妆销量词汇':'销量词汇结果/彩妆',
+    #'文具销量词汇':'销量词汇结果/文具',
+    #'玩具销量词汇':'销量词汇结果/玩具',
+#'饰品系列销量词汇':'销量词汇结果/饰品系列',
+    #'护肤销量词汇':'销量词汇结果/目标1/护肤',
+    #'数码电器销量词汇':'销量词汇结果/数码电器'
+    #'创意家居销量词汇':'销量词汇结果/创意家居',
+     #'季节产品销量词汇':'销量词汇结果/季节产品'
+      #'生活百货销量词汇':'销量词汇结果/生活百货'
+    #'玩具销量词汇':'销量词汇结果/玩具'
+     #'零食销量词汇':'销量词汇结果/零食',
+      #'护肤销量词汇':'销量词汇结果/护肤'
+'洗护销量词汇':'jieba_data/洗护202104'
+#'美妆工具0512销量词汇':'销量词汇结果/美妆工具0512'
+#'洗护销量词汇':'jieba_data\剩余'
+}
+
+paths = {#'海味零食':['data/零食品类/海味零食.xlsx','Sheet1'],
+         #'其他零食':['data/零食品类/其他零食.xlsx','Sheet1'],
+         #'茶叶花茶':['data/零食品类/茶叶花茶.xlsx','Sheet1'],
+         #'谷粉豆浆':['data/零食品类/谷粉豆浆.xlsx','Sheet1'],
+         #'奶粉':['data/零食品类/奶粉.xlsx','Sheet1'],
+         # '酒':['data/零食品类/酒.xlsx','Sheet1'],
+         #'眼影':['jieba_data/彩妆-眼影－人工打标.xlsx','眼影']
+         #'粉饼蜜粉':['data/目标1_20210224/彩妆_粉饼蜜粉_202012.xlsx','Sheet1'],
+         #'女士香水':['data/目标1_20210224/彩妆_女士香水_202012.xlsx','Sheet1'],
+         #'眼线笔':['data/目标1_20210224/彩妆_眼线笔_202012.xlsx','Sheet1'],
+         #'睫毛膏':['data/目标1_20210224/彩妆_睫毛膏_202012.xlsx','Sheet1'],
+         #'指甲油':['data/目标1_20210224/彩妆_指甲油_202012.xlsx','Sheet1'],
+         #'口红':['data/目标1_20210224/彩妆_口红_202012.xlsx','Sheet1'],
+         #'护唇膏':['data/目标1_20210224/护肤_护唇膏_20210201.xlsx','Sheet1'],
+         #'手霜':['data/目标1_20210224/护肤_手霜_20210201.xlsx','Sheet1'],
+         #'盲盒':['data/天猫-玩具数据_20210127.xlsx','盲盒'],
+         #'饼干膨化':['data/零食品类/饼干膨化.xlsx','Sheet1'],
+         #'糖果果冻':['data/零食品类/糖果果冻.xlsx','Sheet1'],
+         #'糕点点心':['data/零食品类/糕点点心.xlsx','Sheet1'],
+         #'肉脯熟食':['data/零食品类/肉脯熟食.xlsx','Sheet1'],
+         #'坚果':['data/零食品类/坚果.xlsx','Sheet1'],
+         #'巧克力':['data/零食品类/巧克力.xlsx','Sheet1'],
+         #'饮料饮品':['data/零食品类/饮料饮品.xlsx','Sheet1'],
+         #'咖啡':['data/零食品类/咖啡.xlsx','Sheet1'],
+         #'果干蜜饯':['data/零食品类/果干蜜饯.xlsx','Sheet1'],
+         #'方便速食':['data/零食品类/方便速食.xlsx','Sheet1'],
+         #'豆干蔬菜干':['data/零食品类/豆干蔬菜干.xlsx','Sheet1'],
+         # '变形玩具':['jieba_data/玩具/玩具_变形玩具_202102.csv','玩具_变形玩具_202102']
+         # '毛巾':['jieba_data/生活百货/生活百货_毛巾_202102.csv','生活百货_毛巾_202102']
+         #'口红':['jieba_data/彩妆/彩妆_口红_202102.csv','彩妆_口红_202102'],
+         #'洗脸巾':['jieba_data/洗护/美妆工具_洗脸巾_202102.csv','美妆工具_洗脸巾_202102'],
+#'香薰':['jieba_data/创意家居/创意家居_香薰_202102.csv','创意家居_香薰_202102'],
+#'彩泥':['jieba_data/玩具/玩具_彩泥_202103.csv','玩具_彩泥_202103'],
+'口气清新':['jieba_data/洗护202104/洗护_口气清新_202104.csv','洗护_口气清新_202104'],
+        }
+
+
+cate4_price = {
+    '洗脸巾': [(0, 20), (20.1, 40), (40, '-')],
+    '香薰': [(0, 20), (20.1, 60), (60, '-')],
+   '眉笔': [(0, 20), (20.1, 60), (60, '-')],
+    '肉脯熟食': [(0, 20), (20.1, 40), (40, '-')],
+    '入耳式耳机': [(0, 40), (40.1, 80), (80, '-')],
+'女士高筒袜': [(0, 40), (40.1, 80), (80, '-')],
+}
