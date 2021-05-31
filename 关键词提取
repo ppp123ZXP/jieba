@@ -1,0 +1,24 @@
+
+# 导入扩展库
+import re                           # 正则表达式库
+import collections                  # 词频统计库
+import xlrd
+import pandas as pd
+import numpy as np
+import string
+
+#fn = open(Analysis_text,'r',encoding = 'UTF-8')  # 打开文件
+#string_data = fn.read()                          # 读出整个文件
+#fn.close()                                       # 关闭文件
+#读取文件
+Analysis_text ='D:/Users/Desktop/pycharm/项目/data/打标数据.xlsx'       # 分析文档
+df1=pd.read_excel(Analysis_text,sheet_name='Sheet1')
+df2=df1[['评论内容']]
+string_data=df2.head()
+df3=df2.values.tolist()
+A = str(df3)
+def ipm_word():
+    for line in df3:
+        B=re.findall("上身效果",line)
+    return B
+ipm_word()
